@@ -9,25 +9,47 @@
     [boot.util        :refer [info dbug]]
     [boot.jruby       :refer [jruby make-jruby]]))
 
+(def layout-names ["layout.html.haml" "layout.haml"])
+
+(defn- only-one [coll]
+  (if (< 1 (count coll))
+    (throw (Exception. (str "Expected only one, found " (pr-str coll))))
+    (first coll)))
+
+(defn- filename [f]
+  (.getName (tmpfile f)))
+
+(def default-layout
+  (io/resource "default_layout.haml"))
+
+(defn layout [fileset]
+  (let [candidates (->> fileset core/input-files (core/by-name layout-names))
+        user-layout (only-one candidates)]
+    (slurp (if user-layout
+             (tmpfile user-layout)
+             default-layout))))
 
 (core/deftask haml
   "Compile haml to html."
   [u ugly     bool "Enables haml's \"ugly\" (non-indented) output mode."]
   (let [tmp (core/temp-dir!)
-        jrb (make-jruby)
         renderer (-> "haml_renderer.rb" io/resource slurp)
-        filename #(.getName (tmpfile %))]
+        jrb (make-jruby)]
     (core/with-pre-wrap fileset
-      (let [haml-files (->> fileset core/input-files (core/by-ext [".haml"])) ]
+      (let [all-haml-files (->> fileset core/input-files (core/by-ext [".haml"]))
+            haml-files (core/not-by-name layout-names all-haml-files)
+            layout' (layout fileset)]
         (jrb fileset
            :gem [["haml" "4.0.5"]]
-           :set-var {"$input" (mapv #(.getAbsolutePath (tmpfile %)) haml-files)
+           :set-var {"$input"  (mapv #(.getAbsolutePath (tmpfile %)) haml-files)
                      "$outdir" (.getPath tmp)
-                     "$ugly" ugly}
+                     "$ugly"   ugly
+                     "$layout" layout'}
            :eval [renderer])
         (println
-          (str "<< Compiled " (apply str (interpose ", " (map filename haml-files))) " >>\n\n"))
+          (str "<< Compiled "
+               (apply str (interpose ", " (map filename haml-files))) " >>\n\n"))
         (-> fileset
-            (core/rm haml-files)
+            (core/rm all-haml-files)
             (core/add-resource tmp)
             core/commit!)))))
