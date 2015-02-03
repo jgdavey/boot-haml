@@ -19,15 +19,3 @@
        :url         "https://github.com/jgdavey/boot-haml"
        :scm         {:url "https://github.com/jgdavey/boot-haml"}
        :license     {"Eclipse Public License" "http://www.eclipse.org/legal/epl-v10.html"}})
-
-(deftask show-files
-  "A debug task to println any files with :ext in the fileset"
-  [e ext PATH [str] "extensions to show"]
-  (with-pre-wrap fileset
-    (doseq [:let [out-f (->> [user-files input-files output-files]
-                          (mapcat #(% fileset))
-                          set)]
-            f (if (seq ext) (by-ext ext out-f) out-f)]
-      (println (str "\n" (tmppath f) ":\n\n")
-        (slurp (tmpfile f))))
-    fileset))
