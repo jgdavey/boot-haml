@@ -8,7 +8,6 @@ end
 class HamlRenderer
   def initialize(files, layout, options)
     @input  = files
-    @outdir = options[:outdir]
     @ugly   = options[:ugly]
     @layout = Haml::Engine.new(layout, filename: "(layout)", ugly: @ugly)
   end
@@ -24,7 +23,7 @@ class HamlRenderer
   end
 
   def outdir
-    @outdir || ENV['BOOT_RSC_PATH']
+    ENV['BOOT_TGT_PATH']
   end
 
   def run!

@@ -32,24 +32,23 @@
 (core/deftask haml
   "Compile haml to html."
   [u ugly     bool "Enables haml's \"ugly\" (non-indented) output mode."]
-  (let [tmp (core/temp-dir!)
-        renderer (-> "haml_renderer.rb" io/resource slurp)
+  (let [renderer (-> "haml_renderer.rb" io/resource slurp)
         jrb (make-jruby)]
     (core/with-pre-wrap fileset
       (let [all-haml-files (->> fileset core/input-files (core/by-ext [".haml"]))
             haml-files (core/not-by-name layout-names all-haml-files)
             layout' (layout fileset)]
-        (jrb fileset
-           :gem [["haml" "4.0.5"]]
-           :set-var {"$input"  (mapv #(.getAbsolutePath (tmpfile %)) haml-files)
-                     "$outdir" (.getPath tmp)
-                     "$ugly"   ugly
-                     "$layout" layout'}
-           :eval [renderer])
-        (println
-          (str "<< Compiled "
-               (apply str (interpose ", " (map filename haml-files))) " >>\n\n"))
-        (-> fileset
-            (core/rm all-haml-files)
-            (core/add-resource tmp)
-            core/commit!)))))
+        (if (seq haml-files)
+          (do
+            (println
+              (str "<< Compiling "
+                   (apply str (interpose ", " (map filename haml-files))) " >>\n\n"))
+            (-> (jrb fileset
+                     :gem [["haml" "4.0.5"]]
+                     :set-var {"$input"  (mapv #(.getAbsolutePath (tmpfile %)) haml-files)
+                               "$ugly"   ugly
+                               "$layout" layout'}
+                     :eval [renderer])
+                (core/rm all-haml-files)
+                core/commit!))
+          fileset)))))
